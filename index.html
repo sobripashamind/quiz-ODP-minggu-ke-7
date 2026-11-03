@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Game Ular Kuis PLTU</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0f172a; 
+      /* Latar foto dari Google Drive menggunakan Direct Link */
+      background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.98)), url('https://drive.google.com/uc?export=view&id=1FneeU8u90SxV9zaVjE0VTVBe9-caKvTe');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      color: #f8fafc;
+      overflow: hidden;
+      touch-action: none;
+    }
+    .font-tech { font-family: 'Share Tech Mono', monospace; }
+    
+    #gameCanvas {
+      background-color: #1e293b;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+      border-radius: 8px;
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+    }
+
+    .glow-amber { box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
+    .glow-cyan { box-shadow: 0 0 15px rgba(34, 211, 238, 0.5); }
+    
+    @keyframes slideDown {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .toast-enter { animation: slideDown 0.3s ease-out forwards; }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-4">
+
+  <!-- Header & Papan Skor -->
+  <header class="w-full max-w-lg mb-2 flex flex-col gap-2">
+    <div class="flex justify-between items-center bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-lg">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg glow-amber">
+          <i class="fa-solid fa-industry text-slate-900 text-xl"></i>
+        </div>
+        <div>
+          <h1 class="text-sm md:text-base font-bold text-white tracking-wide">PLTU <span class="text-amber-400">SNAKE</span></h1>
+          <p class="text-[10px] text-slate-400 font-tech">SISTEM KENDALI UAP</p>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button id="soundBtn" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-center transition active:scale-95">
+          <i id="soundIcon" class="fa-solid fa-volume-high text-xs text-slate-300"></i>
+        </button>
+        <button id="helpBtn" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-center transition active:scale-95">
+          <i class="fa-solid fa-circle-question text-xs text-slate-300"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Papan Skor, Progres Soal, & Timer -->
+    <div class="grid grid-cols-4 gap-1.5 md:gap-2 w-full text-center">
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2 py-1.5 flex flex-col">
+        <span class="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-tech">Progres</span>
+        <span id="progressText" class="text-sm md:text-base font-bold font-tech text-amber-400">1 / 10</span>
+      </div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2 py-1.5 flex flex-col">
+        <span class="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-tech">Waktu Operasi</span>
+        <span id="timerText" class="text-sm md:text-base font-bold font-tech text-cyan-400">00:00</span>
+      </div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2 py-1.5 flex flex-col">
+        <span class="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-tech">Daya</span>
+        <span id="scoreText" class="text-sm md:text-base font-bold font-tech text-amber-400">0 MW</span>
+      </div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2 py-1.5 flex flex-col">
+        <span class="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-tech">Panjang</span>
+        <span id="lengthText" class="text-sm md:text-base font-bold font-tech text-emerald-400">5 Segmen</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Area Permainan Utama -->
+  <main class="w-full max-w-lg flex flex-col items-center relative">
+    
+    <!-- Pertanyaan UI -->
+    <div id="quizPanel" class="w-full bg-slate-900 border-2 border-cyan-800/50 rounded-t-xl p-3 md:p-4 mb-0 z-0">
+      <h2 id="questionText" class="text-xs md:text-sm font-semibold text-cyan-50 text-center leading-relaxed">
+        Memuat sistem PLTU...
+      </h2>
+      <div class="mt-2 text-[10px] md:text-xs text-center text-cyan-300 font-tech">
+        Arahkan ular memakan jawaban (A, B, C, D, E) di area bawah!
+      </div>
+    </div>
+
+    <!-- Container Kanvas -->
+    <div class="relative w-full aspect-square border-2 border-slate-700 rounded-b-xl overflow-hidden shadow-2xl">
+      <canvas id="gameCanvas" width="440" height="440"></canvas>
+      
+      <!-- Toast Notifikasi (Benar/Salah) -->
+      <div id="toastNotif" class="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] max-w-[300px] hidden rounded-lg p-3 shadow-xl border z-20">
+        <div class="flex items-start gap-3">
+          <i id="toastIcon" class="fa-solid mt-1"></i>
+          <div>
+            <h4 id="toastTitle" class="font-bold text-sm">Title</h4>
+            <p id="toastDesc" class="text-xs mt-1 leading-snug opacity-90">Desc</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overlay Layar Mulai / Game Over / Kemenangan -->
+      <div id="startOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-10">
+        <div id="overlayIconBox" class="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 mb-4 animate-bounce">
+          <i id="overlayIcon" class="fa-solid fa-bolt text-3xl"></i>
+        </div>
+        <h2 id="overlayTitle" class="text-2xl md:text-3xl font-tech font-bold text-white mb-2">OPERASI PLTU SIAP!</h2>
+        <p id="overlayDesc" class="text-xs md:text-sm text-slate-300 max-w-sm mb-6">
+          Selesaikan total <b>10 soal kuis PLTU</b> dengan santai tanpa batas waktu!<br>
+          Pipa uap <b>menembus dinding</b>. Arahkan ular memakan opsi <b>A, B, C, D, atau E</b>.<br>
+          <span class="text-cyan-400 font-semibold"><i class="fa-solid fa-hand-pointer"></i> Kontrol HP: Tap langsung layar kanvas atau tombol D-Pad!</span><br>
+          <span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> Benar: Ular Memanjang (+2)</span> | <span class="text-rose-400 font-semibold">Salah: Memendek (-2)</span>
+        </p>
+        <button id="startBtn" class="px-8 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 font-tech font-bold text-slate-950 text-base shadow-lg glow-amber active:scale-95 transition">
+          <i class="fa-solid fa-play mr-2"></i>MULAI OPERASI
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Kontrol Mobile (D-Pad) Mengambang di Ujung Kanan Bawah -->
+  <div class="fixed bottom-6 right-6 md:hidden z-50 grid grid-cols-3 gap-1.5 w-[140px] h-[140px] opacity-70 hover:opacity-100 transition-opacity">
+    <div class="col-start-2">
+      <button id="btnUp" class="w-full h-full bg-slate-900/90 active:bg-slate-700 border border-slate-600 rounded-xl flex items-center justify-center shadow-lg active:scale-95 transition touch-none text-cyan-400 backdrop-blur-sm">
+        <i class="fa-solid fa-chevron-up text-2xl"></i>
+      </button>
+    </div>
+    <div class="col-start-1 row-start-2">
+      <button id="btnLeft" class="w-full h-full bg-slate-900/90 active:bg-slate-700 border border-slate-600 rounded-xl flex items-center justify-center shadow-lg active:scale-95 transition touch-none text-cyan-400 backdrop-blur-sm">
+        <i class="fa-solid fa-chevron-left text-2xl"></i>
+      </button>
+    </div>
+    <div class="col-start-2 row-start-2">
+      <button id="btnDown" class="w-full h-full bg-slate-900/90 active:bg-slate-700 border border-slate-600 rounded-xl flex items-center justify-center shadow-lg active:scale-95 transition touch-none text-cyan-400 backdrop-blur-sm">
+        <i class="fa-solid fa-chevron-down text-2xl"></i>
+      </button>
+    </div>
+    <div class="col-start-3 row-start-2">
+      <button id="btnRight" class="w-full h-full bg-slate-900/90 active:bg-slate-700 border border-slate-600 rounded-xl flex items-center justify-center shadow-lg active:scale-95 transition touch-none text-cyan-400 backdrop-blur-sm">
+        <i class="fa-solid fa-chevron-right text-2xl"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Footer Teks Info -->
+  <footer class="w-full max-w-lg mt-4 flex flex-col items-center gap-4 relative z-10">
+    <div class="text-[10px] md:text-[11px] text-slate-300 text-center flex items-center gap-2 bg-slate-900/80 px-4 py-2 rounded-xl backdrop-blur-md border border-slate-700 shadow-lg">
+      <span><i class="fa-solid fa-hand-pointer text-cyan-400"></i> Tap layar / D-Pad ujung</span>
+      <span class="text-slate-500">•</span>
+      <span><i class="fa-regular fa-keyboard text-amber-400"></i> Panah / WASD</span>
+    </div>
+  </footer>
+
+  <!-- Modal Cara Bermain -->
+  <div id="helpModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 max-w-sm w-full relative">
+      <button id="closeHelpBtn" class="absolute top-3 right-3 text-slate-400 hover:text-white w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <h3 class="text-lg font-bold text-amber-400 mb-3 font-tech"><i class="fa-solid fa-book mr-2"></i>Panduan PLTU</h3>
+      <ul class="text-sm text-slate-300 space-y-3">
+        <li><i class="fa-solid fa-circle-dot text-cyan-400 mr-2 text-xs"></i><b>Tujuan:</b> Selesaikan 10 soal kuis PLTU yang muncul.</li>
+        <li><i class="fa-solid fa-circle-dot text-cyan-400 mr-2 text-xs"></i><b>Cara Menjawab:</b> Arahkan ular memakan kotak huruf (A, B, C, D, E).</li>
+        <li><i class="fa-solid fa-circle-dot text-emerald-400 mr-2 text-xs"></i><b>Jika Benar:</b> Ular memanjang +2, skor daya +100 MW.</li>
+        <li><i class="fa-solid fa-circle-dot text-rose-400 mr-2 text-xs"></i><b>Jika Salah:</b> Ular memendek -2. Pilihan salah menghilang.</li>
+        <li><i class="fa-solid fa-circle-dot text-amber-400 mr-2 text-xs"></i><b>Tembus Dinding:</b> Jika kepala menabrak tepi, ia menembus sisi seberang!</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Audio Lagu Latar -->
+  <audio id="bgmAudio" loop preload="auto">
+    <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-17.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- SCRIPT ENGINE GAME -->
+  <script>
+    // --- BANK SOAL KUIS PLTU ---
+    const PLTU_QUESTIONS = [
+      { q: "Komponen yang berfungsi mengubah air menjadi uap bertekanan tinggi adalah...", options: ["Kondensor", "Turbin", "Boiler", "Generator", "Transformator"], answerIndex: 2, exp: "Boiler (Ketel Uap) membakar batubara untuk memanaskan air menjadi uap bersuhu dan bertekanan sangat tinggi." },
+      { q: "Alat penangkap debu abu terbang (fly ash) sisa pembakaran batubara adalah...", options: ["Deaerator", "Electrostatic Precipitator (ESP)", "Condensate Pump", "Cooling Tower", "Pulverizer"], answerIndex: 1, exp: "ESP menggunakan medan listrik statis untuk menangkap partikel abu terbang agar emisi udara bersih." },
+      { q: "Siklus termodinamika yang menjadi prinsip dasar kerja PLTU berbahan bakar fosil adalah...", options: ["Siklus Otto", "Siklus Diesel", "Siklus Brayton", "Siklus Rankine", "Siklus Carnot"], answerIndex: 3, exp: "Siklus Rankine adalah siklus standar yang mengubah panas menjadi kerja untuk PLTU." },
+      { q: "Fungsi utama Kondensor pada sistem PLTU adalah untuk...", options: ["Menghasilkan listrik", "Memanaskan batubara", "Mendinginkan uap bekas turbin menjadi air", "Menambah tekanan uap", "Menghaluskan batubara"], answerIndex: 2, exp: "Kondensor mendinginkan uap buang turbin LP dan mengembunkannya kembali menjadi air kondensat." },
+      { q: "Mesin yang menghaluskan batubara mentah menjadi serbuk halus sebelum disemprotkan ke boiler adalah...", options: ["Coal Crusher", "Conveyor Belt", "Pulverizer / Coal Mill", "Economizer", "Induced Draft Fan"], answerIndex: 2, exp: "Pulverizer menggiling batubara menjadi serbuk halus agar mudah terbakar di ruang bakar (furnace)." },
+      { q: "Komponen yang memanaskan air pengisi boiler (feedwater) menggunakan sisa gas buang adalah...", options: ["Superheater", "Economizer", "Reheater", "Air Heater", "Condenser"], answerIndex: 1, exp: "Economizer menyerap panas sisa dari gas buang boiler untuk memanaskan awal air pengisi." },
+      { q: "Gas buang pembakaran batubara diolah untuk mengurangi pencemaran hujan asam (Sulfur) menggunakan fasilitas...", options: ["Water Treatment", "FGD (Flue Gas Desulfurization)", "ESP", "Cooling Tower", "Deaerator"], answerIndex: 1, exp: "FGD menyerap kandungan Sulfur Dioksida (SO2) dari gas buang menggunakan larutan limestone." },
+      { q: "Peralatan yang digunakan untuk menghilangkan gas-gas terlarut (terutama Oksigen) dari air pengisi adalah...", options: ["Deaerator", "Condenser", "Cooling Tower", "Boiler Feed Pump", "Demineralizer"], answerIndex: 0, exp: "Deaerator melepaskan gas O2 yang terlarut yang dapat menyebabkan korosi pada pipa boiler." },
+      { q: "Energi kinetik dari uap bertekanan tinggi digunakan untuk memutar poros komponen apa?", options: ["Generator", "Turbin Uap", "Pompa Sirkulasi", "Coal Mill", "ID Fan"], answerIndex: 1, exp: "Uap bertekanan memutar sudu-sudu Turbin Uap, mengubah energi panas menjadi energi mekanik putaran." },
+      { q: "Untuk memastikan air yang masuk ke Boiler bebas dari mineral penyebab kerak, air diolah di...", options: ["Water Treatment Plant (Demin)", "Cooling System", "Coal Handling", "Ash Handling", "FGD"], answerIndex: 0, exp: "Demineralization Plant menghilangkan mineral dari air baku untuk mencegah kerak dan korosi pada pipa boiler." }
+    ];
+
+    // --- SOUND ENGINE (Web Audio API) ---
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+        this.bgmAudioElement = document.getElementById('bgmAudio');
+        this.bgmAudioElement.volume = 0.4;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      }
+      startBGM() {
+        if (!this.enabled) return;
+        this.bgmAudioElement.play().catch(e => console.log("Audio play blocked by browser"));
+      }
+      stopBGM() {
+        this.bgmAudioElement.pause();
+      }
+      playMove() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.2); 
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.25, now + 0.02);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.08); 
+        gain.gain.linearRampToValueAtTime(0.25, now + 0.12); 
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+      playTeleport() {
+        if (!this.enabled || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(260, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(620, this.ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.12);
+      }
+      playCorrect() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + i * 0.07);
+          gain.gain.setValueAtTime(0.2, now + i * 0.07);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.22);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + i * 0.07);
+          osc.stop(now + i * 0.07 + 0.22);
+        });
+      }
+      playWrong() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(190, now);
+        osc.frequency.linearRampToValueAtTime(80, now + 0.25);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+      playGameOver() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        [220, 185, 147, 110].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.14);
+          gain.gain.setValueAtTime(0.18, now + idx * 0.14);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.14 + 0.28);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.14);
+          osc.stop(now + idx * 0.14 + 0.28);
+        });
+      }
+      playVictory() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const melody = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5, 1318.5];
+        melody.forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + i * 0.1);
+          gain.gain.setValueAtTime(0.22, now + i * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.35);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + i * 0.1);
+          osc.stop(now + i * 0.1 + 0.35);
+        });
+      }
+    }
+
+    const sound = new SoundEngine();
+    function vibrate(pattern) { if ('vibrate' in navigator) { try { navigator.vibrate(pattern); } catch (e) {} } }
+
+    // --- GAME ENGINE SETUP ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const GRID_SIZE = 22; 
+    let cellSize = 20;
+    const TOTAL_QUIZ_LIMIT = 10; 
+    let elapsedTimeSeconds = 0; 
+    let timerInterval = null;
+
+    let score = 0, answeredQuestionsCount = 0, correctAnswers = 0;
+    let shuffledQuizList = [], currentQuizIndexInList = 0;
+    let snake = [], dir = { x: 1, y: 0 }, nextDir = { x: 1, y: 0 };
+    let foodItems = []; 
+    let particles = [], embers = []; 
+    let gameInterval = null, isGameOver = false, isGameRunning = false;
+    let gameSpeed = 200; 
+    const LABELS = ["A", "B", "C", "D", "E"];
+
+    function resizeCanvas() {
+      const containerW = canvas.parentElement.clientWidth;
+      canvas.width = containerW;
+      canvas.height = containerW;
+      cellSize = containerW / GRID_SIZE;
+    }
+    window.addEventListener('resize', () => { if(isGameRunning) resizeCanvas(); });
+
+    // --- RESET & MULAI GAME ---
+    function resetGame() {
+      sound.init(); resizeCanvas();
+      score = 0; answeredQuestionsCount = 0; correctAnswers = 0; elapsedTimeSeconds = 0;
+      isGameOver = false; isGameRunning = true; dir = { x: 1, y: 0 }; nextDir = { x: 1, y: 0 };
+      shuffledQuizList = [...PLTU_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, TOTAL_QUIZ_LIMIT);
+      currentQuizIndexInList = 0;
+
+      const mid = Math.floor(GRID_SIZE / 2);
+      snake = [{ x: mid, y: mid }, { x: mid-1, y: mid }, { x: mid-2, y: mid }, { x: mid-3, y: mid }, { x: mid-4, y: mid }];
+
+      particles = []; embers = [];
+      for(let i=0; i<35; i++) {
+        embers.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, s: Math.random() * 1.5 + 0.5, v: Math.random() * 0.8 + 0.2 });
+      }
+
+      loadNextQuiz(); updateStatsUI();
+      document.getElementById('startOverlay').classList.add('hidden');
+      hideToast();
+
+      if (timerInterval) clearInterval(timerInterval);
+      updateTimerDisplay(); timerInterval = setInterval(updateStopwatch, 1000);
+      sound.startBGM();
+
+      if (gameInterval) clearInterval(gameInterval);
+      gameInterval = setInterval(gameLoop, gameSpeed);
+    }
+
+    function updateStopwatch() {
+      if (!isGameRunning || isGameOver) return;
+      elapsedTimeSeconds++;
+      updateTimerDisplay();
+    }
+
+    function updateTimerDisplay() {
+      const minutes = Math.floor(elapsedTimeSeconds / 60);
+      const seconds = elapsedTimeSeconds % 60;
+      document.getElementById('timerText').textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function loadNextQuiz() {
+      if (currentQuizIndexInList >= TOTAL_QUIZ_LIMIT) { triggerVictory(); return; }
+      const qData = shuffledQuizList[currentQuizIndexInList];
+      let htmlContent = `${qData.q}<br><br><div class="grid grid-cols-2 md:grid-cols-3 gap-1 md:gap-2 text-left mt-1 text-[11px] md:text-xs">`;
+      qData.options.forEach((opt, idx) => { htmlContent += `<div class="bg-slate-800/80 p-1.5 md:p-2 rounded border border-slate-700 truncate" title="${opt}"><b class="text-amber-400">${LABELS[idx]}.</b> ${opt}</div>`; });
+      htmlContent += `</div>`;
+      document.getElementById('questionText').innerHTML = htmlContent;
+      generateFoodForQuiz(qData.options.length);
+    }
+
+    function generateFoodForQuiz(optionCount) {
+      foodItems = [];
+      for (let i = 0; i < optionCount; i++) {
+        let newPos, isSafe = false;
+        while (!isSafe) {
+          newPos = { x: Math.floor(Math.random() * GRID_SIZE), y: Math.floor(Math.random() * GRID_SIZE) };
+          isSafe = !snake.some(s => s.x === newPos.x && s.y === newPos.y) && !foodItems.some(f => f.x === newPos.x && f.y === newPos.y);
+        }
+        foodItems.push({ x: newPos.x, y: newPos.y, index: i, label: LABELS[i] });
+      }
+    }
+
+    function triggerVictory() {
+      isGameOver = true; isGameRunning = false;
+      clearInterval(gameInterval); clearInterval(timerInterval); 
+      // sound.stopBGM(); // Sengaja dimatikan agar lagu tetap berjalan
+      sound.playVictory(); vibrate([100, 50, 100, 50, 200]);
+      for (let i=0; i<60; i++) createSparkParticles(Math.random() * canvas.width, Math.random() * canvas.height, ['#f59e0b', '#10b981', '#38bdf8', '#fbbf24', '#e11d48'][Math.floor(Math.random() * 5)], 2);
+      draw();
+      
+      const elOverlay = document.getElementById('startOverlay');
+      document.getElementById('overlayIconBox').className = "w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mb-4 animate-bounce";
+      document.getElementById('overlayIcon').className = "fa-solid fa-trophy text-3xl";
+      const title = document.getElementById('overlayTitle'); title.textContent = "SELAMAT! MISI PLTU SELESAI!"; title.className = "text-2xl md:text-3xl font-tech font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-amber-300 to-cyan-400 mb-2";
+      
+      const minUsed = Math.floor(elapsedTimeSeconds / 60); const secUsed = elapsedTimeSeconds % 60;
+      document.getElementById('overlayDesc').innerHTML = `
+        <span class="text-emerald-300 font-bold text-sm block mb-1">🎉 Luar Biasa! Anda Berhasil Menuntaskan 10 Soal PLTU! 🎉</span>
+        <span class="text-slate-300 text-xs">Pembangkit listrik beroperasi stabil pada efisiensi maksimal.</span><br><br>
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 text-left space-y-1 text-xs">
+          <div class="flex justify-between"><span>Daya Total:</span> <b class="text-amber-400 font-tech">${score} MW</b></div>
+          <div class="flex justify-between"><span>Panjang Akhir:</span> <b class="text-emerald-400 font-tech">${snake.length} Segmen</b></div>
+          <div class="flex justify-between"><span>Total Waktu:</span> <b class="text-cyan-400 font-tech">${minUsed > 0 ? minUsed + ' Menit ' : ''}${secUsed} Detik</b></div>
+          <div class="flex justify-between"><span>Akurasi:</span> <b class="text-purple-400 font-tech">${calculateAccuracy()}%</b></div>
+        </div>`;
+      document.getElementById('startBtn').innerHTML = '<i class="fa-solid fa-rotate-right mr-2"></i>MAIN LAGI SOAL BARU';
+      elOverlay.classList.remove('hidden');
+    }
+
+    function triggerGameOver(reason) {
+      isGameOver = true; isGameRunning = false;
+      clearInterval(gameInterval); clearInterval(timerInterval); 
+      // sound.stopBGM(); // Sengaja dimatikan agar lagu tetap berjalan
+      sound.playGameOver(); vibrate([250, 100, 250, 100]);
+      
+      const elOverlay = document.getElementById('startOverlay');
+      document.getElementById('overlayIconBox').className = "w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 mb-4 animate-pulse";
+      document.getElementById('overlayIcon').className = "fa-solid fa-triangle-exclamation text-3xl";
+      const title = document.getElementById('overlayTitle'); title.textContent = "SISTEM TRIP / BLACKOUT!"; title.className = "text-2xl md:text-3xl font-tech font-bold text-rose-500 mb-2";
+      
+      document.getElementById('overlayDesc').innerHTML = `
+        <span class="text-slate-200 font-semibold">${reason}</span><br><br>
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 text-left space-y-1 text-xs">
+          <div class="flex justify-between"><span>Soal Terjawab:</span> <b class="text-white font-tech">${answeredQuestionsCount} / ${TOTAL_QUIZ_LIMIT}</b></div>
+          <div class="flex justify-between"><span>Daya Terakhir:</span> <b class="text-amber-400 font-tech">${score} MW</b></div>
+          <div class="flex justify-between"><span>Panjang Akhir:</span> <b class="text-emerald-400 font-tech">${snake.length} Segmen</b></div>
+          <div class="flex justify-between"><span>Akurasi:</span> <b class="text-cyan-400 font-tech">${calculateAccuracy()}%</b></div>
+        </div>`;
+      document.getElementById('startBtn').innerHTML = '<i class="fa-solid fa-rotate-right mr-2"></i>RESTART OPERASI';
+      elOverlay.classList.remove('hidden');
+    }
+
+    function calculateAccuracy() { return answeredQuestionsCount === 0 ? 100 : Math.round((correctAnswers / answeredQuestionsCount) * 100); }
+    function updateStatsUI() {
+      document.getElementById('progressText').textContent = `${Math.min(answeredQuestionsCount + 1, TOTAL_QUIZ_LIMIT)} / ${TOTAL_QUIZ_LIMIT}`;
+      document.getElementById('scoreText').textContent = `${score} MW`;
+      document.getElementById('lengthText').textContent = `${snake.length} Segmen`;
+    }
+
+    function showToast(isCorrect, title, desc) {
+      const t = document.getElementById('toastNotif'), i = document.getElementById('toastIcon');
+      t.className = `absolute top-4 left-1/2 -translate-x-1/2 w-[90%] max-w-[300px] rounded-xl p-3 shadow-2xl border z-20 toast-enter ${isCorrect ? 'bg-emerald-900/95 border-emerald-500 text-emerald-50' : 'bg-rose-900/95 border-rose-500 text-rose-50'}`;
+      i.className = `fa-solid mt-1 text-xl ${isCorrect ? 'fa-circle-check text-emerald-400' : 'fa-circle-xmark text-rose-400'}`;
+      document.getElementById('toastTitle').textContent = title; document.getElementById('toastDesc').textContent = desc;
+      setTimeout(() => { t.classList.add('hidden'); t.classList.remove('toast-enter'); }, 5000);
+    }
+
+    function hideToast() { document.getElementById('toastNotif').classList.add('hidden'); }
+
+    function createSparkParticles(x, y, color, count=10) {
+      for(let i=0; i<count; i++) particles.push({ x: x, y: y, vx: (Math.random() - 0.5)*(cellSize/2), vy: (Math.random() - 0.5)*(cellSize/2), life: 1.0, color: color });
+    }
+    function updateParticles() {
+      for(let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= 0.1;
+        if(p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    // --- GAME LOOP ---
+    function gameLoop() {
+      if (isGameOver) return;
+      dir = nextDir;
+      let newHead = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+      let isTeleporting = false;
+
+      if (newHead.x < 0) { newHead.x = GRID_SIZE - 1; isTeleporting = true; }
+      else if (newHead.x >= GRID_SIZE) { newHead.x = 0; isTeleporting = true; }
+      if (newHead.y < 0) { newHead.y = GRID_SIZE - 1; isTeleporting = true; }
+      else if (newHead.y >= GRID_SIZE) { newHead.y = 0; isTeleporting = true; }
+
+      if (isTeleporting) sound.playTeleport();
+
+      for (let i = 1; i < snake.length - 1; i++) {
+        if (newHead.x === snake[i].x && newHead.y === snake[i].y) { triggerGameOver("Ular Menabrak Tubuhnya Sendiri!"); return; }
+      }
+
+      snake.unshift(newHead);
+      let ateFoodIndex = foodItems.findIndex(f => newHead.x === f.x && newHead.y === f.y);
+
+      if (ateFoodIndex !== -1) {
+        const consumedFood = foodItems[ateFoodIndex], qData = shuffledQuizList[currentQuizIndexInList];
+        const hx = newHead.x * cellSize + cellSize/2, hy = newHead.y * cellSize + cellSize/2;
+
+        if (consumedFood.index === qData.answerIndex) {
+          sound.playCorrect(); vibrate([50, 50, 50]);
+          score += 100; correctAnswers++; answeredQuestionsCount++;
+          createSparkParticles(hx, hy, '#10b981', 20); showToast(true, "JAWABAN TEPAT!", qData.exp);
+          snake.push({ ...snake[snake.length-1] });
+          currentQuizIndexInList++; loadNextQuiz();
+        } else {
+          sound.playWrong(); vibrate([200]);
+          createSparkParticles(hx, hy, '#e11d48', 15); showToast(false, `PILIHAN (${consumedFood.label}) SALAH!`, qData.exp);
+          foodItems.splice(ateFoodIndex, 1);
+          snake.pop(); snake.pop(); snake.pop();
+          if (snake.length <= 0) { triggerGameOver("Pipa Ular Habis Karena Kesalahan!"); return; }
+        }
+        updateStatsUI();
+      } else { snake.pop(); }
+
+      updateParticles(); draw();
+    }
+
+    // --- DRAWING KANVAS ---
+    function draw() {
+      const bgGrad = ctx.createRadialGradient(canvas.width/2, canvas.height, 10, canvas.width/2, canvas.height/2, canvas.height);
+      bgGrad.addColorStop(0, '#450a0a'); bgGrad.addColorStop(1, '#0f172a');
+      ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      embers.forEach(e => {
+        e.y -= e.v; if(e.y < 0) { e.y = canvas.height; e.x = Math.random() * canvas.width; }
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.5)'; ctx.beginPath(); ctx.arc(e.x, e.y, e.s, 0, Math.PI*2); ctx.fill();
+      });
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'; ctx.lineWidth = 1;
+      for (let i = 0; i < GRID_SIZE; i++) {
+        ctx.beginPath(); ctx.moveTo(i * cellSize, 0); ctx.lineTo(i * cellSize, canvas.height);
+        ctx.moveTo(0, i * cellSize); ctx.lineTo(canvas.width, i * cellSize); ctx.stroke();
+      }
+
+      foodItems.forEach(food => {
+        const fx = food.x * cellSize, fy = food.y * cellSize;
+        ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 12; ctx.fillStyle = '#1c1917';
+        ctx.beginPath(); ctx.roundRect(fx + 2, fy + 2, cellSize - 4, cellSize - 4, 4); ctx.fill();
+        ctx.strokeStyle = '#ea580c'; ctx.lineWidth = 1.5; ctx.strokeRect(fx + 2, fy + 2, cellSize - 4, cellSize - 4);
+        ctx.shadowBlur = 0; ctx.fillStyle = '#fef3c7'; ctx.font = `bold ${cellSize * 0.55}px "Share Tech Mono"`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(food.label, fx + cellSize/2, fy + cellSize/2 + 1);
+      });
+
+      [...snake].reverse().forEach((segment, revIndex) => {
+        const index = snake.length - 1 - revIndex;
+        const sx = segment.x * cellSize, sy = segment.y * cellSize, isHead = index === 0;
+
+        if (isHead) {
+          ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 15;
+          ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.roundRect(sx, sy, cellSize, cellSize, 5); ctx.fill();
+          ctx.fillStyle = '#0ea5e9'; ctx.beginPath(); ctx.arc(sx + cellSize/2, sy + cellSize/2, cellSize/3, 0, Math.PI*2); ctx.fill();
+          ctx.shadowBlur = 0; ctx.fillStyle = '#ffffff'; ctx.beginPath();
+          if (dir.x === 1) { ctx.moveTo(sx + cellSize - 6, sy + cellSize/2); ctx.lineTo(sx + 6, sy + 6); ctx.lineTo(sx + 6, sy + cellSize - 6); }
+          else if (dir.x === -1) { ctx.moveTo(sx + 6, sy + cellSize/2); ctx.lineTo(sx + cellSize - 6, sy + 6); ctx.lineTo(sx + cellSize - 6, sy + cellSize - 6); }
+          else if (dir.y === 1) { ctx.moveTo(sx + cellSize/2, sy + cellSize - 6); ctx.lineTo(sx + 6, sy + 6); ctx.lineTo(sx + cellSize - 6, sy + 6); }
+          else { ctx.moveTo(sx + cellSize/2, sy + 6); ctx.lineTo(sx + 6, sy + cellSize - 6); ctx.lineTo(sx + cellSize - 6, sy + cellSize - 6); }
+          ctx.fill();
+        } else {
+          const nextSeg = snake[index - 1]; 
+          if (nextSeg && Math.abs(segment.x - nextSeg.x) <= 1 && Math.abs(segment.y - nextSeg.y) <= 1) {
+            const nx = nextSeg.x * cellSize, ny = nextSeg.y * cellSize;
+            ctx.fillStyle = '#475569'; ctx.fillRect((sx + nx)/2 + cellSize * 0.15, (sy + ny)/2 + cellSize * 0.15, cellSize * 0.7, cellSize * 0.7);
+          }
+          ctx.fillStyle = '#9a3412'; ctx.beginPath(); ctx.roundRect(sx + 2, sy + 2, cellSize - 4, cellSize - 4, 3); ctx.fill();
+          ctx.shadowColor = '#fcd34d'; ctx.shadowBlur = 8; ctx.fillStyle = '#fde68a';
+          ctx.beginPath(); ctx.roundRect(sx + 6, sy + 6, cellSize - 12, cellSize - 12, 2); ctx.fill(); ctx.shadowBlur = 0;
+        }
+      });
+
+      particles.forEach(p => { ctx.fillStyle = p.color; ctx.globalAlpha = p.life; ctx.beginPath(); ctx.arc(p.x, p.y, cellSize * 0.15, 0, Math.PI*2); ctx.fill(); });
+      ctx.globalAlpha = 1.0;
+    }
+
+    // --- KONTROL ULAR ---
+    function setDirection(dx, dy) {
+      if (!isGameRunning || isGameOver) return;
+      if (dx !== 0 && dir.x === -dx) return;
+      if (dy !== 0 && dir.y === -dy) return;
+      if (nextDir.x !== dx || nextDir.y !== dy) sound.playMove(); 
+      nextDir = { x: dx, y: dy };
+    }
+
+    window.addEventListener('keydown', (e) => {
+      sound.init();
+      switch (e.key) {
+        case 'ArrowUp': case 'w': case 'W': setDirection(0, -1); break;
+        case 'ArrowDown': case 's': case 'S': setDirection(0, 1); break;
+        case 'ArrowLeft': case 'a': case 'A': setDirection(-1, 0); break;
+        case 'ArrowRight': case 'd': case 'D': setDirection(1, 0); break;
+      }
+    });
+
+    function attachTouchBtn(btn, dx, dy) {
+      btn.addEventListener('pointerdown', (e) => { if (e.cancelable) e.preventDefault(); sound.init(); vibrate(20); setDirection(dx, dy); });
+    }
+    attachTouchBtn(document.getElementById('btnUp'), 0, -1); attachTouchBtn(document.getElementById('btnDown'), 0, 1);
+    attachTouchBtn(document.getElementById('btnLeft'), -1, 0); attachTouchBtn(document.getElementById('btnRight'), 1, 0);
+
+    let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+    canvas.addEventListener('touchstart', (e) => { sound.init(); const t = e.touches[0]; touchStartX = t.clientX; touchStartY = t.clientY; touchStartTime = Date.now(); }, { passive: false });
+    canvas.addEventListener('touchend', (e) => {
+      if (!isGameRunning || isGameOver) return; if (e.cancelable) e.preventDefault();
+      const t = e.changedTouches[0], deltaX = t.clientX - touchStartX, deltaY = t.clientY - touchStartY, distance = Math.hypot(deltaX, deltaY);
+      if (distance < 15 && Date.now() - touchStartTime < 300) {
+        const rect = canvas.getBoundingClientRect();
+        const diffX = (t.clientX - rect.left) - (snake[0].x * cellSize + cellSize / 2), diffY = (t.clientY - rect.top) - (snake[0].y * cellSize + cellSize / 2);
+        if (Math.abs(diffX) > Math.abs(diffY)) setDirection(diffX > 0 ? 1 : -1, 0); else setDirection(0, diffY > 0 ? 1 : -1);
+        vibrate(20); return;
+      }
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 20) { setDirection(deltaX > 0 ? 1 : -1, 0); vibrate(15); }
+      else if (Math.abs(deltaY) > 20) { setDirection(0, deltaY > 0 ? 1 : -1); vibrate(15); }
+    }, { passive: false });
+
+    // --- AUTO-PLAY BGM SAAT USER INTERAKSI PERTAMA ---
+    document.body.addEventListener('pointerdown', () => {
+      if (sound.enabled && sound.bgmAudioElement.paused) {
+        sound.init();
+        sound.startBGM();
+      }
+    }, { once: true });
+
+    // --- TOMBOL DAN MODAL INTERFACE ---
+    document.getElementById('startBtn').addEventListener('click', () => resetGame());
+    document.getElementById('soundBtn').addEventListener('click', () => {
+      sound.init(); sound.enabled = !sound.enabled;
+      if (sound.enabled) { document.getElementById('soundIcon').className = "fa-solid fa-volume-high text-xs text-slate-300"; if (isGameRunning && !isGameOver) sound.startBGM(); }
+      else { document.getElementById('soundIcon').className = "fa-solid fa-volume-xmark text-xs text-rose-400"; sound.stopBGM(); }
+    });
+    
+    // Help Modal Logic
+    document.getElementById('helpBtn').addEventListener('click', () => { document.getElementById('helpModal').classList.remove('hidden'); });
+    document.getElementById('closeHelpBtn').addEventListener('click', () => { document.getElementById('helpModal').classList.add('hidden'); });
+
+    window.onload = function() { resizeCanvas(); draw(); };
+  </script>
+</body>
+</html>
